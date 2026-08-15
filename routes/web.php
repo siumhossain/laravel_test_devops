@@ -6,5 +6,5 @@ Route::inertia('/', 'welcome')->name('home');
 
 
 Route::get('/', function () {
-    return response()->json(['status' => 'server running']);
+    return response()->json(['status' => 'code change']);
 });
