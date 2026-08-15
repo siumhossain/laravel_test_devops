@@ -1,3 +1,61 @@
+# name: Deploy
+
+# on:
+#   push:
+#     branches: [main]
+
+# jobs:
+#   build-and-push:
+#     runs-on: ubuntu-latest
+#     outputs:
+#       image_tag: ${{ steps.vars.outputs.tag }}
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - name: Set image tag
+#         id: vars
+#         run: echo "tag=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+#       - name: Docker login
+#         uses: docker/login-action@v3
+#         with:
+#           username: ${{ secrets.DOCKERHUB_USERNAME }}
+#           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+#       - name: Build and push
+#         uses: docker/build-push-action@v5
+#         with:
+#           context: .
+#           push: true
+#           tags: |
+#             ${{ secrets.DOCKERHUB_USERNAME }}/laravel_test_devops_devops:${{ steps.vars.outputs.tag }}
+#             ${{ secrets.DOCKERHUB_USERNAME }}/laravel_test_devops_devops:latest
+
+#   deploy:
+#     needs: build-and-push
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: SSH deploy
+#         uses: appleboy/ssh-action@v1.0.3
+#         with:
+#           host: ${{ secrets.SERVER_HOST_ONE }}
+#           username: ${{ secrets.SERVER_USER_ONE }}
+#           password: ${{ secrets.SERVER_PASS_ONE }}
+#           script: |
+#             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+#             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/laravel_test_devops_devops:${{ needs.build-and-push.outputs.image_tag }}
+#             docker stop laravel_test_devops_devops || true
+#             docker rm laravel_test_devops_devops || true
+#             docker run -d --name laravel_test_devops_devops -p 9000:9000 \
+#               -e APP_KEY=${{ secrets.APP_KEY }} \
+#               -e APP_ENV=production \
+#               -e SESSION_DRIVER=file \
+#               -e CACHE_STORE=file \
+#               -e QUEUE_CONNECTION=sync \
+#               ${{ secrets.DOCKERHUB_USERNAME }}/laravel_test_devops_devops:${{ needs.build-and-push.outputs.image_tag }}
+
+
+
 name: Deploy
 
 on:
@@ -43,13 +101,24 @@ jobs:
           password: ${{ secrets.SERVER_PASS_ONE }}
           script: |
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/laravel_test_devops:${{ needs.build-and-push.outputs.image_tag }}
-            docker stop laravel_test_devops || true
-            docker rm laravel_test_devops || true
-            docker run -d --name laravel_test_devops -p 9000:9000 \
-              -e APP_KEY=${{ secrets.APP_KEY }} \
-              -e APP_ENV=production \
-              -e SESSION_DRIVER=file \
-              -e CACHE_STORE=file \
-              -e QUEUE_CONNECTION=sync \
-              ${{ secrets.DOCKERHUB_USERNAME }}/laravel_test_devops:${{ needs.build-and-push.outputs.image_tag }}
+
+            if docker service ls --format '{{.Name}}' | grep -q '^laravel_test_devops$'; then
+              docker service update \
+                --image ${{ secrets.DOCKERHUB_USERNAME }}/laravel_test_devops:${{ needs.build-and-push.outputs.image_tag }} \
+                --with-registry-auth \
+                laravel_test_devops
+            else
+              docker service create \
+                --name laravel_test_devops \
+                --replicas 2 \
+                --publish 9000:9000 \
+                --env APP_KEY=${{ secrets.APP_KEY }} \
+                --env APP_ENV=production \
+                --env SESSION_DRIVER=file \
+                --env CACHE_STORE=file \
+                --env QUEUE_CONNECTION=sync \
+                --with-registry-auth \
+                ${{ secrets.DOCKERHUB_USERNAME }}/laravel_test_devops:${{ needs.build-and-push.outputs.image_tag }}
+            fi
+
+
