@@ -1,38 +1,55 @@
-name: tests
+name: Deploy
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-
-permissions:
-  contents: read
+    branches: [main]
 
 jobs:
-  ci:
+  build-and-push:
     runs-on: ubuntu-latest
-
+    outputs:
+      image_tag: ${{ steps.vars.outputs.tag }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: vars
+        run: echo "tag=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Docker login
+        uses: docker/login-action@v3
         with:
-          persist-credentials: false
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+      - name: Build and push
+        uses: docker/build-push-action@v5
         with:
-          php-version: '8.5'
-          tools: composer:v2
-          coverage: none
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/laravel_test_devops:${{ steps.vars.outputs.tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/laravel_test_devops:latest
 
-      - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH deploy
+        uses: appleboy/ssh-action@v1.0.3
         with:
-          node-version: '22'
-
-      - name: Setup Application
-        run: composer setup
-
-      - name: Run CI Checks
-        run: composer ci:check
+          host: ${{ secrets.SERVER_HOST_ONE }}
+          username: ${{ secrets.SERVER_USER_ONE }}
+          password: ${{ secrets.SERVER_PASS_ONE }}
+          script: |
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/laravel_test_devops:${{ needs.build-and-push.outputs.image_tag }}
+            docker stop laravel_test_devops || true
+            docker rm laravel_test_devops || true
+            docker run -d --name laravel_test_devops -p 9000:9000 \
+              -e APP_KEY=${{ secrets.APP_KEY }} \
+              -e APP_ENV=production \
+              -e SESSION_DRIVER=file \
+              -e CACHE_STORE=file \
+              -e QUEUE_CONNECTION=sync \
+              ${{ secrets.DOCKERHUB_USERNAME }}/laravel_test_devops:${{ needs.build-and-push.outputs.image_tag }}
