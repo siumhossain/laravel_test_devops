@@ -1,0 +1,50 @@
+{
+    "family": "intrepid-server-oxsmi2",
+    "networkMode": "awsvpc",
+    "taskRoleArn": "arn:aws:iam::793168138415:role/ecsTaskExecutionRole",
+    "executionRoleArn": "arn:aws:iam::793168138415:role/ecsTaskExecutionRole",
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "1024",
+    "memory": "2048",
+    "runtimePlatform": {
+        "cpuArchitecture": "ARM64",
+        "operatingSystemFamily": "LINUX"
+    },
+    "containerDefinitions": [
+        {
+            "name": "Main",
+            "image": "793168138415.dkr.ecr.ap-southeast-1.amazonaws.com/laravel_test:latest",
+            "essential": true,
+            "portMappings": [
+                {
+                    "containerPort": 80,
+                    "hostPort": 80,
+                    "protocol": "tcp",
+                    "name": "main-80-tcp",
+                    "appProtocol": "http"
+                },
+                {
+                    "containerPort": 9000,
+                    "hostPort": 9000,
+                    "protocol": "tcp",
+                    "name": "main-9000-tcp"
+                }
+            ],
+            "environment": [
+                { "name": "APP_ENV", "value": "production" },
+                { "name": "APP_DEBUG", "value": "false" },
+                { "name": "LOG_CHANNEL", "value": "stderr" },
+                { "name": "APP_KEY", "value": "APP_KEY_PLACEHOLDER" }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/intrepid-server-oxsmi2",
+                    "awslogs-region": "ap-southeast-1",
+                    "awslogs-stream-prefix": "ecs",
+                    "awslogs-create-group": "true"
+                }
+            }
+        }
+    ]
+}
