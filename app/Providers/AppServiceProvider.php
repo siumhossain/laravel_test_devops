@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Prometheus\CollectorRegistry;
+use Prometheus\Storage\Predis;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -15,7 +17,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(CollectorRegistry::class, fn () => new CollectorRegistry(new Predis([
+            'host' => config('database.redis.default.host'),
+            'port' => (int) config('database.redis.default.port'),
+        ])));
     }
 
     /**
