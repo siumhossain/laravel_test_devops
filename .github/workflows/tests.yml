@@ -10,7 +10,7 @@
 #     outputs:
 #       image_tag: ${{ steps.vars.outputs.tag }}
 #     steps:
-#       - uses: actions/checkout@v4
+#       - uses: actions/checkout@v7
 
 #       - name: Set image tag
 #         id: vars
@@ -23,7 +23,7 @@
 #           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
 #       - name: Build and push
-#         uses: docker/build-push-action@v5
+#         uses: docker/build-push-action@v7
 #         with:
 #           context: .
 #           push: true
@@ -36,7 +36,7 @@
 #     runs-on: ubuntu-latest
 #     steps:
 #       - name: SSH deploy
-#         uses: appleboy/ssh-action@v1.0.3
+#         uses: appleboy/ssh-action@v1.2.5
 #         with:
 #           host: ${{ secrets.SERVER_HOST_ONE }}
 #           username: ${{ secrets.SERVER_USER_ONE }}
@@ -68,7 +68,7 @@ jobs:
     outputs:
       image_tag: ${{ steps.vars.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set image tag
         id: vars
@@ -81,7 +81,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
@@ -94,7 +94,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: SSH deploy
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.SERVER_HOST_ONE }}
           username: ${{ secrets.SERVER_USER_ONE }}
